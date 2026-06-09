@@ -32,6 +32,18 @@ Vercel 設定：
 
 本專案也已包含 `vercel.json`，匯入 Vercel 後通常可直接部署。
 
+## 部署到 GitHub Pages
+
+```bash
+npm run build:pages
+```
+
+GitHub Pages 網址：
+
+```text
+https://yuchengc345-lab.github.io/introduce/
+```
+
 ## 內容注意
 
 台股分析師 Agent 是研究工具展示，不構成投資建議。若未來加入線上 demo，請先確認資料來源、API key 與登入保護設定。
