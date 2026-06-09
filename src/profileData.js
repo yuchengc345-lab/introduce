@@ -97,19 +97,11 @@ export const works = [
   },
   {
     title: "AI Chat Data Evaluator",
-    type: "AI Knowledge Assistant",
-    result: "結合 AI 問答與資料評估流程，展示知識型 AI assistant 的應用方式。",
+    type: "Chat Data Analytics / AI QA",
+    result:
+      "AI 聊天數據評估 MVP，可上傳 LINE、AI 客服、電商與顧問服務聊天 CSV，透過規則引擎分析購買意圖、情緒分數、流失風險、問題分類與人工跟進名單，並產生 Dashboard 與分析報告。",
+    note: "支援行業模板、AI 回覆品質檢查與 Supabase 報告儲存擴充。",
     url: "https://ai-chat-data-evaluator.vercel.app/knowledge-assistant",
-  },
-  {
-    title: "客製化 AI Agent 服務",
-    type: "AI Agent",
-    result: "依需求規劃 AI agent 的任務流程、互動方式與可落地的使用場景。",
-  },
-  {
-    title: "AI 工具網站搭建",
-    type: "Web Build",
-    result: "使用 AI 工具、GitHub 與前端設計，把想法快速整理成線上作品。",
   },
 ];
 
