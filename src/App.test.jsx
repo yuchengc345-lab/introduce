@@ -3,7 +3,7 @@ import App from "./App";
 
 describe("Professional profile site", () => {
   it("renders the core professional services sections", () => {
-    render(<App />);
+    const { container } = render(<App />);
 
     expect(screen.getByRole("heading", { name: /陳禹丞/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "服務內容" })).toBeInTheDocument();
@@ -17,6 +17,7 @@ describe("Professional profile site", () => {
     expect(screen.getByRole("heading", { name: "AI Chat Data Evaluator" })).toBeInTheDocument();
     expect(screen.getByText(/透過規則引擎分析購買意圖、情緒分數、流失風險/)).toBeInTheDocument();
     expect(screen.getByText("支援行業模板、AI 回覆品質檢查與 Supabase 報告儲存擴充。")).toBeInTheDocument();
+    expect(container.querySelectorAll(".work-image img")).toHaveLength(2);
     expect(screen.queryByRole("heading", { name: "客製化 AI Agent 服務" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "證書" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "聯絡方式" })).toBeInTheDocument();

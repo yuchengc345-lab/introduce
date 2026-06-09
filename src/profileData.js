@@ -1,4 +1,5 @@
 import certificateImage from "./assets/canva-certificate.jpg";
+import chatDataDashboard from "./assets/ai-chat-data-dashboard.svg";
 import profilePortrait from "./assets/profile-photo-portrait.jpg";
 import twStockAgentPoster from "./assets/tw-stock-agent-poster.jpg";
 
@@ -101,6 +102,7 @@ export const works = [
     result:
       "AI 聊天數據評估 MVP，可上傳 LINE、AI 客服、電商與顧問服務聊天 CSV，透過規則引擎分析購買意圖、情緒分數、流失風險、問題分類與人工跟進名單，並產生 Dashboard 與分析報告。",
     note: "支援行業模板、AI 回覆品質檢查與 Supabase 報告儲存擴充。",
+    image: chatDataDashboard,
     url: "https://ai-chat-data-evaluator.vercel.app/knowledge-assistant",
   },
 ];
