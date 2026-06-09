@@ -1,0 +1,69 @@
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1920" height="1080" fill="#DFF5FF"/>
+  <rect x="86" y="76" width="1748" height="928" rx="30" fill="#F8FDFF" stroke="#82D6F6" stroke-width="3"/>
+  <path d="M86 216H1834" stroke="#BFEFFF" stroke-width="3"/>
+  <circle cx="142" cy="146" r="18" fill="#18A4D6"/>
+  <circle cx="196" cy="146" r="18" fill="#66D4EF"/>
+  <circle cx="250" cy="146" r="18" fill="#B5ECFF"/>
+  <text x="328" y="157" fill="#12364F" font-family="Arial, sans-serif" font-size="42" font-weight="700">AI Chat Data Evaluator</text>
+  <text x="328" y="195" fill="#087DA8" font-family="Arial, sans-serif" font-size="24" font-weight="700">CSV conversation analytics dashboard</text>
+
+  <rect x="128" y="260" width="404" height="240" rx="18" fill="#FFFFFF" stroke="#B6E8F8" stroke-width="3"/>
+  <text x="168" y="318" fill="#17415C" font-family="Arial, sans-serif" font-size="28" font-weight="700">CSV 上傳分析</text>
+  <rect x="168" y="356" width="324" height="64" rx="12" fill="#E9F9FF" stroke="#88DDF6" stroke-width="2"/>
+  <text x="196" y="397" fill="#078CB8" font-family="Arial, sans-serif" font-size="24" font-weight="700">sample-chat.csv</text>
+  <text x="168" y="460" fill="#52738A" font-family="Arial, sans-serif" font-size="22">LINE / AI 客服 / 電商對話</text>
+
+  <rect x="578" y="260" width="1214" height="240" rx="18" fill="#FFFFFF" stroke="#B6E8F8" stroke-width="3"/>
+  <g>
+    <rect x="628" y="320" width="248" height="132" rx="16" fill="#EEF9FD"/>
+    <text x="660" y="366" fill="#52738A" font-family="Arial, sans-serif" font-size="22">高購買意圖</text>
+    <text x="660" y="424" fill="#0A8FBF" font-family="Arial, sans-serif" font-size="54" font-weight="800">42%</text>
+  </g>
+  <g>
+    <rect x="920" y="320" width="248" height="132" rx="16" fill="#EEF9FD"/>
+    <text x="952" y="366" fill="#52738A" font-family="Arial, sans-serif" font-size="22">負面情緒</text>
+    <text x="952" y="424" fill="#0A8FBF" font-family="Arial, sans-serif" font-size="54" font-weight="800">18%</text>
+  </g>
+  <g>
+    <rect x="1212" y="320" width="248" height="132" rx="16" fill="#EEF9FD"/>
+    <text x="1244" y="366" fill="#52738A" font-family="Arial, sans-serif" font-size="22">流失風險</text>
+    <text x="1244" y="424" fill="#0A8FBF" font-family="Arial, sans-serif" font-size="54" font-weight="800">27%</text>
+  </g>
+  <g>
+    <rect x="1504" y="320" width="238" height="132" rx="16" fill="#EEF9FD"/>
+    <text x="1536" y="366" fill="#52738A" font-family="Arial, sans-serif" font-size="22">需人工跟進</text>
+    <text x="1536" y="424" fill="#0A8FBF" font-family="Arial, sans-serif" font-size="54" font-weight="800">12</text>
+  </g>
+
+  <rect x="128" y="548" width="790" height="368" rx="18" fill="#FFFFFF" stroke="#B6E8F8" stroke-width="3"/>
+  <text x="168" y="610" fill="#17415C" font-family="Arial, sans-serif" font-size="30" font-weight="700">問題分類</text>
+  <g fill="#3CBDE8">
+    <rect x="168" y="674" width="112" height="170" rx="10"/>
+    <rect x="314" y="628" width="112" height="216" rx="10"/>
+    <rect x="460" y="708" width="112" height="136" rx="10"/>
+    <rect x="606" y="584" width="112" height="260" rx="10"/>
+    <rect x="752" y="744" width="112" height="100" rx="10"/>
+  </g>
+  <g fill="#52738A" font-family="Arial, sans-serif" font-size="22">
+    <text x="183" y="882">價格</text>
+    <text x="329" y="882">付款</text>
+    <text x="475" y="882">物流</text>
+    <text x="621" y="882">產品</text>
+    <text x="767" y="882">客訴</text>
+  </g>
+
+  <rect x="970" y="548" width="822" height="368" rx="18" fill="#FFFFFF" stroke="#B6E8F8" stroke-width="3"/>
+  <text x="1010" y="610" fill="#17415C" font-family="Arial, sans-serif" font-size="30" font-weight="700">人工跟進名單</text>
+  <g font-family="Arial, sans-serif">
+    <rect x="1010" y="650" width="742" height="66" rx="12" fill="#EEF9FD"/>
+    <text x="1040" y="692" fill="#12364F" font-size="24" font-weight="700">buyer_001</text>
+    <text x="1220" y="692" fill="#078CB8" font-size="24">詢問方案與 LINE 聯絡</text>
+    <rect x="1010" y="740" width="742" height="66" rx="12" fill="#EEF9FD"/>
+    <text x="1040" y="782" fill="#12364F" font-size="24" font-weight="700">risk_001</text>
+    <text x="1220" y="782" fill="#078CB8" font-size="24">物流未解決，重複詢問</text>
+    <rect x="1010" y="830" width="742" height="66" rx="12" fill="#EEF9FD"/>
+    <text x="1040" y="872" fill="#12364F" font-size="24" font-weight="700">custom_001</text>
+    <text x="1220" y="872" fill="#078CB8" font-size="24">企業客製化服務需求</text>
+  </g>
+</svg>
