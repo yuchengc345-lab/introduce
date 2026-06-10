@@ -2,7 +2,17 @@ import { useRef } from "react";
 import gsap from "gsap";
 import { useGSAP } from "@gsap/react";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
-import { certificates, pricingPlans, profile, services, stats, strengths, works } from "./profileData";
+import {
+  certificates,
+  demoPreview,
+  pricingPlans,
+  profile,
+  services,
+  stats,
+  strengths,
+  studioFlow,
+  works,
+} from "./profileData";
 import "./App.css";
 
 gsap.registerPlugin(ScrollTrigger, useGSAP);
@@ -49,7 +59,9 @@ function App() {
         .from("h1", { autoAlpha: 0, y: 46, scale: 0.96, duration: 0.9 }, "-=0.15")
         .from(".role-text", { autoAlpha: 0, x: -28, duration: 0.62 }, "-=0.35")
         .from(".hero-intro", { autoAlpha: 0, y: 26, duration: 0.65 }, "-=0.25")
-        .from(".hero-actions a", { autoAlpha: 0, y: 18, duration: 0.48, stagger: 0.1 }, "-=0.2");
+        .from(".hero-actions a", { autoAlpha: 0, y: 18, duration: 0.48, stagger: 0.1 }, "-=0.2")
+        .from(".studio-visual", { autoAlpha: 0, x: 48, scale: 0.96, duration: 0.8 }, "-=0.9")
+        .from(".studio-panel, .studio-chip, .studio-node", { autoAlpha: 0, y: 18, duration: 0.5, stagger: 0.08 }, "-=0.55");
 
       gsap.to(".ambient-grid", {
         x: 34,
@@ -61,7 +73,11 @@ function App() {
       });
 
       gsap.utils.toArray(".animated-section").forEach((section) => {
-        const isSpecialReveal = (element) => element.closest(".work-row") || element.closest(".pricing-grid");
+        const isSpecialReveal = (element) =>
+          element.closest(".work-row") ||
+          element.closest(".pricing-grid") ||
+          element.closest(".flow-grid") ||
+          element.closest(".demo-lab");
         const left = gsap.utils.toArray(section.querySelectorAll(".reveal-left")).filter((item) => !isSpecialReveal(item));
         const right = gsap.utils.toArray(section.querySelectorAll(".reveal-right")).filter((item) => !isSpecialReveal(item));
         const up = gsap.utils.toArray(section.querySelectorAll(".reveal-up")).filter((item) => !isSpecialReveal(item));
@@ -113,6 +129,50 @@ function App() {
           );
         }
       });
+
+      gsap
+        .timeline({
+          scrollTrigger: {
+            trigger: ".flow-grid",
+            start: "top 76%",
+            end: "bottom 32%",
+            toggleActions: "play none none reverse",
+          },
+        })
+        .from(".flow-line", { scaleX: 0, transformOrigin: "left center", duration: 0.72, ease: "power3.out" })
+        .from(
+          ".flow-step",
+          {
+            autoAlpha: 0,
+            y: 34,
+            duration: 0.58,
+            stagger: 0.11,
+            ease: "power3.out",
+          },
+          "-=0.35",
+        );
+
+      gsap
+        .timeline({
+          scrollTrigger: {
+            trigger: ".demo-lab",
+            start: "top 74%",
+            end: "bottom 30%",
+            toggleActions: "play none none reverse",
+          },
+        })
+        .from(".demo-console", { autoAlpha: 0, x: -46, duration: 0.72, ease: "power3.out" })
+        .from(
+          ".demo-card",
+          {
+            autoAlpha: 0,
+            x: 38,
+            duration: 0.5,
+            stagger: 0.1,
+            ease: "power3.out",
+          },
+          "-=0.45",
+        );
 
       gsap.utils.toArray(".work-row").forEach((row) => {
         const image = row.querySelector(".work-image");
@@ -209,7 +269,9 @@ function App() {
           <span className="brand-mark">YC</span>
           <div>
             <a href="#services">服務</a>
+            <a href="#flow">流程</a>
             <a href="#pricing">方案</a>
+            <a href="#demo">Demo</a>
             <a href="#works">成果</a>
             <a href="#certificates">證書</a>
             <a href="#contact">聯絡</a>
@@ -218,8 +280,8 @@ function App() {
 
         <div className="hero-layout">
           <div className="hero-copy">
-            <span className="eyebrow">Professional Digital Services</span>
-            <h1>{profile.name}</h1>
+            <span className="eyebrow">AI Product Studio</span>
+            <h1>把 AI 想法做成能上線的產品</h1>
             <p className="role-text">{profile.role}</p>
             <p className="hero-intro">{profile.intro}</p>
             <div className="hero-actions">
@@ -230,6 +292,31 @@ function App() {
                 查看服務
               </a>
             </div>
+          </div>
+          <div className="studio-visual" aria-hidden="true">
+            <div className="studio-panel studio-panel-main">
+              <span>Live Build Board</span>
+              <strong>AI Agent MVP</strong>
+              <div className="studio-bars">
+                <i />
+                <i />
+                <i />
+              </div>
+            </div>
+            <div className="studio-panel studio-panel-chat">
+              <span>User idea</span>
+              <p>我想做一個能分析客戶對話的 AI 工具</p>
+            </div>
+            <div className="studio-panel studio-panel-report">
+              <span>Output</span>
+              <strong>Dashboard + Report + Deploy URL</strong>
+            </div>
+            <div className="studio-chip">React</div>
+            <div className="studio-chip studio-chip-agent">Agent Flow</div>
+            <div className="studio-chip studio-chip-deploy">GitHub Pages</div>
+            <div className="studio-node studio-node-a" />
+            <div className="studio-node studio-node-b" />
+            <div className="studio-node studio-node-c" />
           </div>
         </div>
       </section>
@@ -258,6 +345,24 @@ function App() {
               <span className="card-index">0{strengths.indexOf(item) + 1}</span>
               <h3>{item.title}</h3>
               <p>{item.detail}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="animated-section flow-section" id="flow">
+        <SectionHeader
+          eyebrow="Studio Flow"
+          title="從想法到上線"
+          copy="用產品流程處理 AI 專案，不只是做一個頁面，而是把需求變成能展示、能測試、能分享的線上成果。"
+        />
+        <div className="flow-grid">
+          <div className="flow-line" aria-hidden="true" />
+          {studioFlow.map((step, index) => (
+            <article className="flow-step" key={step.title}>
+              <span>0{index + 1}</span>
+              <h3>{step.title}</h3>
+              <p>{step.detail}</p>
             </article>
           ))}
         </div>
@@ -300,11 +405,34 @@ function App() {
         </p>
       </section>
 
+      <section className="animated-section demo-section" id="demo">
+        <SectionHeader
+          eyebrow="Interactive Preview"
+          title="Demo 預覽"
+          copy="讓客戶看到的不只是能力列表，而是一個想法如何被拆成 AI 流程、介面與可部署產品。"
+        />
+        <div className="demo-lab">
+          <div className="demo-console">
+            <span className="eyebrow">Client Prompt</span>
+            <p>我想做一個客服聊天分析工具，可以找出高意圖客戶、負面情緒和需要人工跟進的人。</p>
+            <div className="demo-command">generate product plan</div>
+          </div>
+          <div className="demo-output">
+            {demoPreview.map((item) => (
+              <article className="demo-card" key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="animated-section works-section" id="works">
         <SectionHeader
           eyebrow="Selected Work"
-          title="代表成果"
-          copy="先以可替換案例呈現，之後可以換成你的真實作品、照片、截圖與數據。"
+          title="Case Study"
+          copy="用作品說明我如何把 AI、資料與前端介面組成可以展示的產品原型。"
         />
         <div className="work-list">
           {works.map((work, index) => (
@@ -316,6 +444,13 @@ function App() {
                 <span className="eyebrow">{work.type}</span>
                 <h3>{work.title}</h3>
                 <p>{work.result}</p>
+                {work.metrics ? (
+                  <div className="work-metrics" aria-label={`${work.title} 重點`}>
+                    {work.metrics.map((metric) => (
+                      <span key={metric}>{metric}</span>
+                    ))}
+                  </div>
+                ) : null}
                 {work.note ? <p className="work-note">{work.note}</p> : null}
                 {work.url ? (
                   <a className="work-link" href={work.url} target="_blank" rel="noreferrer">

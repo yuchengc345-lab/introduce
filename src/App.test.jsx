@@ -5,15 +5,22 @@ describe("Professional profile site", () => {
   it("renders the core professional services sections", () => {
     const { container } = render(<App />);
 
-    expect(screen.getByRole("heading", { name: /陳禹丞/i })).toBeInTheDocument();
+    expect(screen.getByText("AI Product Studio / AI Agent 客製化搭建")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "把 AI 想法做成能上線的產品" })).toBeInTheDocument();
+    expect(screen.getByText("Live Build Board")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "從想法到上線" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Agent 流程" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "服務內容" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "服務方案" })).toBeInTheDocument();
     expect(screen.getAllByRole("heading", { name: "客製化 AI Agent" })).toHaveLength(2);
     expect(screen.getByText("NT$ 15,000 起，依需求報價")).toBeInTheDocument();
     expect(screen.getByText("實際價格會依功能範圍、資料來源、是否需要部署、是否串接 API 調整。")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "代表成果" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Demo 預覽" })).toBeInTheDocument();
+    expect(screen.getByText("generate product plan")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Case Study" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "台股分析師 Agent" })).toBeInTheDocument();
     expect(screen.getByText("此為研究工具展示，不構成投資建議。")).toBeInTheDocument();
+    expect(screen.getByText("多 Agent 研究流程")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "AI Chat Data Evaluator" })).toBeInTheDocument();
     expect(screen.getByText(/透過規則引擎分析購買意圖、情緒分數、流失風險/)).toBeInTheDocument();
     expect(screen.getByText("支援行業模板、AI 回覆品質檢查與 Supabase 報告儲存擴充。")).toBeInTheDocument();
