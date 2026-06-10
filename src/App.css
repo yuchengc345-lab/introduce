@@ -45,6 +45,19 @@ a {
   background-size: 42px 42px;
 }
 
+.site-shell::before {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background:
+    linear-gradient(115deg, transparent 0 42%, rgba(255, 255, 255, 0.22) 48%, transparent 54%),
+    repeating-linear-gradient(90deg, transparent 0 78px, rgba(8, 140, 184, 0.04) 79px 80px);
+  mix-blend-mode: screen;
+  opacity: 0.52;
+  transform: translate3d(0, 0, 0);
+}
+
 .hero-section,
 .animated-section {
   position: relative;
@@ -68,6 +81,33 @@ a {
     linear-gradient(120deg, transparent 15%, rgba(255, 255, 255, 0.52) 45%, transparent 72%),
     repeating-linear-gradient(90deg, transparent 0 118px, rgba(47, 148, 193, 0.08) 119px 120px);
   opacity: 0.9;
+  will-change: transform;
+}
+
+.ambient-grid::before,
+.ambient-grid::after {
+  position: absolute;
+  content: "";
+  pointer-events: none;
+}
+
+.ambient-grid::before {
+  inset: 16% 8% auto auto;
+  width: min(420px, 48vw);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(7, 140, 184, 0.36), transparent);
+  box-shadow:
+    0 90px 0 rgba(7, 140, 184, 0.12),
+    -180px 240px 0 rgba(7, 140, 184, 0.1);
+}
+
+.ambient-grid::after {
+  right: 10%;
+  bottom: 18%;
+  width: min(360px, 42vw);
+  height: min(360px, 42vw);
+  border: 1px solid rgba(7, 140, 184, 0.1);
+  transform: rotate(12deg);
 }
 
 .top-nav {
@@ -194,6 +234,12 @@ h3 {
   padding: 0 22px;
   border: 1px solid rgba(20, 132, 179, 0.28);
   font-weight: 800;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease,
+    transform 180ms ease;
 }
 
 .primary-action {
@@ -207,6 +253,23 @@ h3 {
   color: #164561;
 }
 
+.primary-action:hover,
+.secondary-action:hover,
+.work-link:hover {
+  transform: translateY(-2px);
+}
+
+.primary-action:hover {
+  background: #057faa;
+  box-shadow: 0 24px 54px rgba(41, 149, 193, 0.32);
+}
+
+.secondary-action:hover,
+.work-link:hover {
+  border-color: rgba(7, 140, 184, 0.42);
+  background: rgba(255, 255, 255, 0.88);
+}
+
 .hero-visual,
 .profile-panel,
 .contact-panel,
@@ -218,6 +281,22 @@ h3 {
   background: rgba(255, 255, 255, 0.68);
   box-shadow: 0 24px 70px rgba(35, 105, 146, 0.14);
   backdrop-filter: blur(16px);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease,
+    background-color 180ms ease;
+  will-change: transform;
+}
+
+.feature-card:hover,
+.service-card:hover,
+.pricing-card:hover,
+.work-row:hover {
+  border-color: rgba(7, 140, 184, 0.36);
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 30px 86px rgba(35, 105, 146, 0.2);
+  transform: translateY(-4px);
 }
 
 .hero-visual {
@@ -353,6 +432,28 @@ h3 {
   display: flex;
   min-height: 280px;
   flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.pricing-card::before,
+.work-row::before {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  content: "";
+  background: linear-gradient(115deg, transparent 0 34%, rgba(255, 255, 255, 0.52) 48%, transparent 62%);
+  opacity: 0;
+  transform: translateX(-24%);
+  transition:
+    opacity 220ms ease,
+    transform 320ms ease;
+}
+
+.pricing-card:hover::before,
+.work-row:hover::before {
+  opacity: 1;
+  transform: translateX(24%);
 }
 
 .pricing-card h3 {
@@ -375,6 +476,16 @@ h3 {
   background: rgba(10, 143, 191, 0.1);
   color: #057faa;
   font-size: 1.02rem;
+  transition:
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
+}
+
+.pricing-card:hover strong {
+  background: rgba(10, 143, 191, 0.16);
+  box-shadow: 0 12px 28px rgba(10, 143, 191, 0.12);
+  transform: translateY(-1px);
 }
 
 .pricing-note {
@@ -392,10 +503,12 @@ h3 {
 }
 
 .work-row {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(220px, 0.72fr) minmax(0, 1.28fr);
   gap: 28px;
   align-items: center;
+  overflow: hidden;
   padding: 18px;
 }
 
@@ -408,6 +521,7 @@ h3 {
   background:
     linear-gradient(145deg, rgba(99, 206, 242, 0.24), rgba(255, 255, 255, 0.54)),
     repeating-linear-gradient(135deg, rgba(16, 92, 132, 0.08) 0 1px, transparent 1px 18px);
+  transform: translate3d(0, 0, 0);
 }
 
 .work-image img {
@@ -415,6 +529,12 @@ h3 {
   height: calc(100% + 36px);
   margin: -18px;
   object-fit: cover;
+  transition: transform 520ms ease;
+  will-change: transform;
+}
+
+.work-row:hover .work-image img {
+  transform: scale(1.045);
 }
 
 .work-image span {
@@ -444,6 +564,10 @@ h3 {
   background: rgba(10, 143, 191, 0.08);
   color: #078cb8;
   font-weight: 800;
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    transform 180ms ease;
 }
 
 .certificate-layout {
@@ -591,5 +715,16 @@ h3 {
   .service-card,
   .pricing-card {
     min-height: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }

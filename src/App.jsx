@@ -36,30 +36,41 @@ function App() {
   useGSAP(
     () => {
       if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        gsap.set(".hero-copy, .reveal-left, .reveal-right, .reveal-up", {
+        gsap.set(".hero-copy, .reveal-left, .reveal-right, .reveal-up, .ambient-grid", {
           clearProps: "all",
         });
         return;
       }
 
-      gsap.from(".hero-copy > *", {
-        autoAlpha: 0,
-        y: 28,
-        duration: 0.8,
-        stagger: 0.12,
-        ease: "power3.out",
+      gsap
+        .timeline({ defaults: { ease: "power3.out" } })
+        .from(".top-nav", { autoAlpha: 0, y: -18, duration: 0.7 })
+        .from(".hero-copy .eyebrow", { autoAlpha: 0, y: 22, duration: 0.55 }, "-=0.25")
+        .from("h1", { autoAlpha: 0, y: 46, scale: 0.96, duration: 0.9 }, "-=0.15")
+        .from(".role-text", { autoAlpha: 0, x: -28, duration: 0.62 }, "-=0.35")
+        .from(".hero-intro", { autoAlpha: 0, y: 26, duration: 0.65 }, "-=0.25")
+        .from(".hero-actions a", { autoAlpha: 0, y: 18, duration: 0.48, stagger: 0.1 }, "-=0.2");
+
+      gsap.to(".ambient-grid", {
+        x: 34,
+        y: -20,
+        duration: 12,
+        repeat: -1,
+        yoyo: true,
+        ease: "sine.inOut",
       });
 
       gsap.utils.toArray(".animated-section").forEach((section) => {
-        const left = section.querySelectorAll(".reveal-left");
-        const right = section.querySelectorAll(".reveal-right");
-        const up = section.querySelectorAll(".reveal-up");
+        const isSpecialReveal = (element) => element.closest(".work-row") || element.closest(".pricing-grid");
+        const left = gsap.utils.toArray(section.querySelectorAll(".reveal-left")).filter((item) => !isSpecialReveal(item));
+        const right = gsap.utils.toArray(section.querySelectorAll(".reveal-right")).filter((item) => !isSpecialReveal(item));
+        const up = gsap.utils.toArray(section.querySelectorAll(".reveal-up")).filter((item) => !isSpecialReveal(item));
 
         const timeline = gsap.timeline({
           scrollTrigger: {
             trigger: section,
-            start: "top 72%",
-            end: "bottom 25%",
+            start: "top 74%",
+            end: "bottom 24%",
             toggleActions: "play none none reverse",
           },
         });
@@ -102,6 +113,90 @@ function App() {
           );
         }
       });
+
+      gsap.utils.toArray(".work-row").forEach((row) => {
+        const image = row.querySelector(".work-image");
+        const media = row.querySelector(".work-image img, .work-image span");
+        const copyItems = row.querySelectorAll(".work-copy > *");
+
+        gsap
+          .timeline({
+            scrollTrigger: {
+              trigger: row,
+              start: "top 78%",
+              end: "bottom 34%",
+              toggleActions: "play none none reverse",
+            },
+          })
+          .from(row, {
+            autoAlpha: 0,
+            y: 52,
+            duration: 0.72,
+            ease: "power3.out",
+          })
+          .from(
+            image,
+            {
+              x: -44,
+              scale: 0.94,
+              duration: 0.86,
+              ease: "power3.out",
+            },
+            "-=0.45",
+          )
+          .from(
+            media,
+            {
+              scale: 1.12,
+              autoAlpha: 0,
+              duration: 0.9,
+              ease: "power3.out",
+            },
+            "-=0.7",
+          )
+          .from(
+            copyItems,
+            {
+              autoAlpha: 0,
+              x: 36,
+              duration: 0.48,
+              stagger: 0.07,
+              ease: "power3.out",
+            },
+            "-=0.45",
+          );
+      });
+
+      const pricingCards = gsap.utils.toArray(".pricing-card");
+      gsap
+        .timeline({
+          scrollTrigger: {
+            trigger: ".pricing-grid",
+            start: "top 76%",
+            end: "bottom 32%",
+            toggleActions: "play none none reverse",
+          },
+        })
+        .from(pricingCards, {
+          autoAlpha: 0,
+          y: 46,
+          scale: 0.96,
+          duration: 0.62,
+          stagger: 0.09,
+          ease: "power3.out",
+        })
+        .from(
+          ".pricing-card strong",
+          {
+            autoAlpha: 0,
+            y: 12,
+            scale: 0.92,
+            duration: 0.38,
+            stagger: 0.08,
+            ease: "back.out(1.7)",
+          },
+          "-=0.28",
+        );
     },
     { scope: pageRef },
   );
