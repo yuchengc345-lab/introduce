@@ -1031,6 +1031,10 @@ h3 {
     min-height: 420px;
   }
 
+  .profile-panel img {
+    object-position: 54% center;
+  }
+
   .studio-panel-main,
   .studio-panel-chat,
   .studio-panel-report {
