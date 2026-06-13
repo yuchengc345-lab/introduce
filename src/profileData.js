@@ -102,22 +102,22 @@ export const demoPreview = [
 
 export const pricingPlans = [
   {
-    title: "入門展示頁",
-    fit: "個人介紹 / 作品集 / 服務頁",
-    detail: "一頁式網站、基本 RWD、聯絡方式整理與上線部署。",
-    price: "NT$ 3,000 起",
+    title: "資料分析報告",
+    fit: "CSV / 客戶對話 / 營運資料",
+    detail: "資料整理、指標分析、風險分類、重點摘要與可閱讀報告。",
+    price: "NT$ 5,000 / 案",
   },
   {
     title: "AI 工具網站 / 前端原型",
     fit: "可操作 Demo / 想法驗證",
     detail: "React 前端、表單與資料顯示、API 串接、部署設定。",
-    price: "NT$ 8,000 起",
+    price: "NT$ 8,000 / 案",
   },
   {
     title: "客製化 AI Agent",
     fit: "問答 / 資料分析 / 自動化流程",
     detail: "需求規劃、Agent 流程、資料處理、簡易 Dashboard 與部署建議。",
-    price: "NT$ 15,000 起，依需求報價",
+    price: "NT$ 12,000 / 案",
   },
 ];
 
