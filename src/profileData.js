@@ -1,5 +1,6 @@
 import certificateImage from "./assets/canva-certificate.jpg";
 import chatDataDashboard from "./assets/ai-chat-data-dashboard.svg";
+import gestureParticlePoster from "./assets/gesture-particle-poster.svg";
 import profilePortrait from "./assets/profile-photo-portrait.jpg";
 import twStockAgentPoster from "./assets/tw-stock-agent-poster.jpg";
 
@@ -140,6 +141,16 @@ export const works = [
     metrics: ["CSV 上傳分析", "風險與意圖評分", "Dashboard 報告頁"],
     image: chatDataDashboard,
     url: "https://ai-chat-data-evaluator.vercel.app/knowledge-assistant",
+  },
+  {
+    title: "Gesture Particle Field",
+    type: "Interactive Art / Hand Tracking",
+    result:
+      "手勢控制粒子效果藝術網站，使用 Three.js 建立 22,000 顆粒子場，搭配 MediaPipe 手部辨識控制文字、爆炸、黑洞與共振效果，讓觀眾可以用鏡頭和手勢直接互動。",
+    note: "需要瀏覽器允許相機權限；在 HTTPS 公開站可直接開啟互動 Demo。",
+    metrics: ["Three.js 粒子場", "MediaPipe 手勢辨識", "相機互動 Demo"],
+    image: gestureParticlePoster,
+    url: "/introduce/gesture-particle-field/",
   },
 ];
 

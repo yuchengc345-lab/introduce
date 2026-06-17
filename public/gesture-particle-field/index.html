@@ -1,0 +1,986 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gesture Particle Field</title>
+  <style>
+    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #02040a; color: #eef7ff; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif; }
+    #app { position: fixed; inset: 0; }
+    canvas.webgl { display: block; width: 100%; height: 100%; }
+    #video { position: fixed; right: 16px; bottom: 16px; width: 180px; max-width: 28vw; aspect-ratio: 4 / 3; object-fit: cover; transform: scaleX(-1); border: 1px solid rgba(180, 220, 255, .28); background: #080b12; opacity: .72; }
+    #hud { position: fixed; left: 16px; top: 16px; display: grid; gap: 8px; padding: 12px 14px; min-width: 220px; background: rgba(2, 5, 12, .62); border: 1px solid rgba(180, 220, 255, .22); backdrop-filter: blur(14px); font-size: 13px; line-height: 1.35; }
+    .row { display: flex; justify-content: space-between; gap: 16px; }
+    .label { color: rgba(224, 244, 255, .62); }
+    .value { color: #fff; font-variant-numeric: tabular-nums; }
+    #start { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); border: 1px solid rgba(160, 220, 255, .34); background: rgba(7, 16, 32, .86); color: #fff; padding: 10px 14px; font: inherit; cursor: pointer; }
+  </style>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+        "@mediapipe/tasks-vision": "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/vision_bundle.mjs"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <video id="video" playsinline muted></video>
+  <div id="hud" aria-live="polite"></div>
+  <button id="start" type="button">Start camera</button>
+  <script type="module">
+    import * as THREE from "three";
+
+    const RIGHT_TEXTS = { 1: "hello", 2: "丞丞大北鼻", 3: "快樂每一天", 4: "打荒野嗎？", 5: "0" };
+    const LEFT_TEXTS = { 1: "0", 2: "粒子視覺效果", 3: "搭建", 4: "用AI寫代碼", 5: "hello" };
+    const KEYBOARD_TEXTS = RIGHT_TEXTS;
+    const PARTICLE_COUNT = 22000;
+    const MIRROR_SELFIE_LABELS = false;
+    const RIGHT_TEXT_STABLE_FRAMES = 4;
+    const COMBO_SEQUENCES = { Right: [1, 2, 3, 4, 5], Left: [5, 4, 3, 2, 1] };
+    const COMBO_MODES = { Right: "boom", Left: "blackHole" };
+    const COMBO_DELAY_MS = 3000;
+    const COMBO_BLAST_MS = 7000;
+    const IDLE_GRACE_MS = 900;
+    const app = document.querySelector("#app");
+    const video = document.querySelector("#video");
+    const hud = document.querySelector("#hud");
+    const startButton = document.querySelector("#start");
+
+    const state = {
+      activeTextKey: "Right:1",
+      activeText: RIGHT_TEXTS[1],
+      targetExplosion: 0,
+      explosion: 0,
+      targetScale: 1,
+      scale: 1,
+      targetResonance: 0,
+      resonance: 0,
+      leftFingers: 0,
+      leftTextCandidate: 0,
+      leftTextCandidateFrames: 0,
+      rightFingers: 0,
+      rightTextCandidate: 0,
+      rightTextCandidateFrames: 0,
+      cameraStatus: "idle",
+      handsStatus: "waiting",
+      comboStatus: "-",
+      demoMode: true,
+      lastHandSeenAt: -Infinity,
+      transitionKick: 0,
+      combo: createComboState()
+    };
+
+    let scene;
+    let camera;
+    let renderer;
+    let particles;
+    let textTargets;
+    let galaxyTargets;
+    let scratchObject;
+    let handLandmarker;
+    let lastVideoTime = -1;
+    let startingCamera = false;
+    let trackingActive = false;
+    const hudValues = {};
+    const particlePositions = new Float32Array(PARTICLE_COUNT * 3);
+
+    function createHudRows() {
+      const rows = [
+        ["activeText", "Text"],
+        ["leftFingers", "Left hand"],
+        ["rightFingers", "Right hand"],
+        ["explosion", "Explosion"],
+        ["scale", "Scale"],
+        ["resonance", "Dual"],
+        ["comboStatus", "Combo"],
+        ["cameraStatus", "Camera"],
+        ["handsStatus", "Hands"]
+      ];
+
+      for (const [key, labelText] of rows) {
+        const row = document.createElement("div");
+        const label = document.createElement("span");
+        const value = document.createElement("span");
+
+        row.className = "row";
+        label.className = "label";
+        value.className = "value";
+        label.textContent = labelText;
+
+        row.append(label, value);
+        hud.append(row);
+        hudValues[key] = value;
+      }
+    }
+
+    function setHud() {
+      if (!hudValues.activeText) {
+        createHudRows();
+      }
+
+      hudValues.activeText.textContent = state.activeText;
+      hudValues.leftFingers.textContent = state.leftFingers ? String(state.leftFingers) : "-";
+      hudValues.rightFingers.textContent = state.rightFingers ? String(state.rightFingers) : "-";
+      hudValues.explosion.textContent = state.explosion.toFixed(2);
+      hudValues.scale.textContent = state.scale.toFixed(2);
+      hudValues.resonance.textContent = state.resonance.toFixed(2);
+      hudValues.comboStatus.textContent = state.comboStatus;
+      hudValues.cameraStatus.textContent = state.cameraStatus;
+      hudValues.handsStatus.textContent = state.handsStatus;
+    }
+
+    function createRenderer() {
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(52, 1, 1, 4000);
+      camera.position.set(0, 0, 760);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setClearColor(0x02040a, 1);
+      renderer.domElement.className = "webgl";
+      app.appendChild(renderer.domElement);
+
+      const resize = () => {
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        camera.aspect = width / height;
+        camera.updateProjectionMatrix();
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+        renderer.setSize(width, height, false);
+      };
+
+      window.addEventListener("resize", resize);
+      resize();
+    }
+
+    function createGalaxyTargets(count) {
+      const targets = new Float32Array(count * 3);
+      const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+
+      for (let index = 0; index < count; index += 1) {
+        const normalized = index / Math.max(1, count - 1);
+        const arm = index % 5;
+        const radius = Math.sqrt(normalized) * 470;
+        const angle = normalized * Math.PI * 9 + arm * ((Math.PI * 2) / 5) + index * goldenAngle * 0.018;
+        const diskNoise = Math.sin(index * 12.9898) * 18;
+        const verticalWave = Math.cos(index * 0.071 + arm) * (18 + normalized * 54);
+        const offset = index * 3;
+
+        targets[offset] = Math.cos(angle) * (radius + diskNoise);
+        targets[offset + 1] = Math.sin(angle) * (radius * 0.58 + diskNoise * 0.45) + verticalWave;
+        targets[offset + 2] = (Math.sin(index * 0.173) + Math.cos(index * 0.047)) * 115 * (0.2 + normalized);
+      }
+
+      return targets;
+    }
+
+    function createFallbackTargets(count) {
+      const targets = new Float32Array(count * 3);
+      const columns = Math.ceil(Math.sqrt(count));
+      const spacing = 6;
+      const width = columns * spacing;
+
+      for (let index = 0; index < count; index += 1) {
+        const row = Math.floor(index / columns);
+        const column = index % columns;
+        const offset = index * 3;
+        const jitter = ((index * 48271) % 101) / 101 - 0.5;
+
+        targets[offset] = column * spacing - width / 2 + jitter * 2.4;
+        targets[offset + 1] = row * spacing - width / 2 + Math.sin(index * 0.13) * 2.4;
+        targets[offset + 2] = Math.cos(index * 0.17) * 20;
+      }
+
+      return targets;
+    }
+
+    function splitTextIntoLines(text) {
+      const chars = Array.from(String(text || "").trim());
+      if (chars.length <= 5) {
+        return [chars.join("") || " "];
+      }
+
+      const midpoint = Math.ceil(chars.length / 2);
+      return [
+        chars.slice(0, midpoint).join(""),
+        chars.slice(midpoint).join("")
+      ];
+    }
+
+    function createComboState() {
+      return {
+        index: 0,
+        startedAt: 0,
+        lastFinger: 0,
+        hand: "",
+        mode: "",
+        blastAt: 0,
+        activeUntil: 0
+      };
+    }
+
+    function resetGestureCombo(combo) {
+      combo.index = 0;
+      combo.startedAt = 0;
+      combo.lastFinger = 0;
+      combo.hand = "";
+    }
+
+    function advanceGestureCombo(combo, hand, fingers, now) {
+      const sequence = COMBO_SEQUENCES[hand];
+      if (!sequence || combo.blastAt > now || combo.activeUntil > now) {
+        return false;
+      }
+
+      if (combo.hand && combo.hand !== hand) {
+        resetGestureCombo(combo);
+      }
+
+      if (fingers === combo.lastFinger) {
+        return false;
+      }
+
+      combo.lastFinger = fingers;
+
+      if (fingers === sequence[combo.index]) {
+        if (combo.index === 0) {
+          combo.startedAt = now;
+          combo.hand = hand;
+        }
+
+        combo.index += 1;
+        if (combo.index === sequence.length) {
+          combo.mode = COMBO_MODES[hand];
+          combo.blastAt = now + COMBO_DELAY_MS;
+          combo.activeUntil = combo.blastAt + COMBO_BLAST_MS;
+          resetGestureCombo(combo);
+          return true;
+        }
+
+        return false;
+      }
+
+      if (fingers === sequence[0]) {
+        combo.index = 1;
+        combo.startedAt = now;
+        combo.hand = hand;
+        return false;
+      }
+
+      resetGestureCombo(combo);
+      return false;
+    }
+
+    function rotatingBlastPoint(x, y, z, angle, wobble) {
+      const cos = Math.cos(angle);
+      const sin = Math.sin(angle);
+
+      return {
+        x: x * cos - y * sin,
+        y: x * sin + y * cos,
+        z: z + wobble
+      };
+    }
+
+    function blackHolePoint(x, y, z, progress, swirl) {
+      const pull = Math.sin(Math.max(0, Math.min(1, progress)) * Math.PI);
+      const scale = Math.max(0.05, 1 - pull * 0.75);
+      const rotated = rotatingBlastPoint(x * scale, y * scale, z * scale, swirl * pull, 0);
+
+      return rotated;
+    }
+
+    function idleBreathValue(seconds) {
+      return 0.5 + Math.sin(seconds * 0.32) * 0.32;
+    }
+
+    function idleScanValue(y, seconds) {
+      const scanLine = ((seconds * 150) % 1000) - 500;
+      return Math.max(0, 1 - Math.abs(y - scanLine) / 120);
+    }
+
+    function shouldEnterIdle(now, lastHandSeenAt) {
+      return !Number.isFinite(lastHandSeenAt) || now - lastHandSeenAt >= IDLE_GRACE_MS;
+    }
+
+    function resonanceFromScale(scale) {
+      return clamp01((scale - 0.68) / 0.78);
+    }
+
+    function resonanceMixForParticle(index, intensity) {
+      const multiplier = index % 3 === 0 ? 1.08 : 1;
+      return clamp01(intensity * multiplier);
+    }
+
+    function resonanceTargetPoint(index, count, x, y, z, intensity, seconds) {
+      const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+      const shieldParticle = index % 3 === 0;
+
+      if (shieldParticle) {
+        const angle = index * goldenAngle + seconds * (0.8 + intensity * 2.4);
+        const ringRadius = 260 + intensity * 130;
+        const ringWave = Math.sin(seconds * 2.5 + index * 0.031) * (10 + intensity * 26);
+
+        return {
+          x: Math.cos(angle) * ringRadius,
+          y: Math.sin(angle) * (ringRadius * 0.72),
+          z: ringWave
+        };
+      }
+
+      const normalized = index / Math.max(1, count - 1);
+      const sphereRadius = 58 + intensity * 92;
+      const theta = index * goldenAngle + seconds * (1.4 + intensity * 2.2);
+      const phi = Math.acos(1 - 2 * ((normalized * 37.17) % 1));
+      const pulse = 0.76 + Math.sin(seconds * 3.2 + index * 0.019) * 0.14;
+
+      return {
+        x: Math.sin(phi) * Math.cos(theta) * sphereRadius * pulse,
+        y: Math.sin(phi) * Math.sin(theta) * sphereRadius * pulse,
+        z: Math.cos(phi) * sphereRadius * pulse
+      };
+    }
+
+    function sampleTextTargets(text, count) {
+      const canvas = document.createElement("canvas");
+      const width = 1600;
+      const height = 640;
+      canvas.width = width;
+      canvas.height = height;
+
+      const context = canvas.getContext("2d", { willReadFrequently: true });
+      if (!context) {
+        return createFallbackTargets(count);
+      }
+
+      context.clearRect(0, 0, width, height);
+      context.fillStyle = "#fff";
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+
+      const family = '"PingFang TC", "Microsoft JhengHei", system-ui, sans-serif';
+      const lines = splitTextIntoLines(text);
+      let fontSize = lines.length > 1 ? 188 : 208;
+      context.font = `900 ${fontSize}px ${family}`;
+      const maxWidth = width * 0.78;
+
+      while (lines.some((line) => context.measureText(line).width > maxWidth) && fontSize > 78) {
+        fontSize -= 4;
+        context.font = `900 ${fontSize}px ${family}`;
+      }
+
+      const lineHeight = fontSize * 1.08;
+      for (let index = 0; index < lines.length; index += 1) {
+        const y = height / 2 + (index - (lines.length - 1) / 2) * lineHeight + fontSize * 0.04;
+        context.fillText(lines[index], width / 2, y);
+      }
+
+      let pixels;
+      try {
+        pixels = context.getImageData(0, 0, width, height).data;
+      } catch (error) {
+        return createFallbackTargets(count);
+      }
+
+      const opaquePixels = [];
+      const step = 2;
+
+      for (let y = 0; y < height; y += step) {
+        for (let x = 0; x < width; x += step) {
+          const alpha = pixels[((y * width + x) * 4) + 3];
+          if (alpha > 18) {
+            opaquePixels.push(x, y, alpha);
+          }
+        }
+      }
+
+      const targets = new Float32Array(count * 3);
+      if (opaquePixels.length === 0) {
+        return createFallbackTargets(count);
+      }
+
+      const pointCount = opaquePixels.length / 3;
+      const textScale = 0.72;
+
+      for (let index = 0; index < count; index += 1) {
+        const sourceIndex = ((index * 9973) % pointCount) * 3;
+        const jitter = ((index * 16807) % 97) / 97 - 0.5;
+        const offset = index * 3;
+        const x = opaquePixels[sourceIndex];
+        const y = opaquePixels[sourceIndex + 1];
+        const alpha = opaquePixels[sourceIndex + 2] / 255;
+
+        targets[offset] = (x - width / 2) * textScale + jitter * 1.7;
+        targets[offset + 1] = (height / 2 - y) * textScale + jitter * 1.7;
+        targets[offset + 2] = (alpha - 0.5) * 24 + Math.sin(index * 0.19) * 10;
+      }
+
+      return targets;
+    }
+
+    function createParticleField(count) {
+      textTargets = sampleTextTargets(state.activeText, count);
+      galaxyTargets = createGalaxyTargets(count);
+      scratchObject = new THREE.Object3D();
+
+      const geometry = new THREE.BoxGeometry(1.75, 1.75, 1.75);
+      const material = new THREE.MeshBasicMaterial({
+        color: 0xdff8ff,
+        transparent: true,
+        opacity: 0.92,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
+      });
+      particles = new THREE.InstancedMesh(geometry, material, count);
+      particles.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      scene.add(particles);
+
+      for (let index = 0; index < count; index += 1) {
+        const offset = index * 3;
+        particlePositions[offset] = galaxyTargets[offset];
+        particlePositions[offset + 1] = galaxyTargets[offset + 1];
+        particlePositions[offset + 2] = galaxyTargets[offset + 2];
+      }
+    }
+
+    function updateParticleTargets(text) {
+      state.activeText = text;
+      textTargets = sampleTextTargets(text, PARTICLE_COUNT);
+      state.transitionKick = 1;
+    }
+
+    function gestureTextForHand(hand, fingers) {
+      const textMap = hand === "Left" ? LEFT_TEXTS : RIGHT_TEXTS;
+      return textMap[fingers] || "";
+    }
+
+    function setActiveText(hand, fingers) {
+      const text = gestureTextForHand(hand, fingers);
+      const key = `${hand}:${fingers}`;
+      if (!text) return;
+      const sequence = COMBO_SEQUENCES[hand];
+      const triggered = advanceGestureCombo(state.combo, hand, fingers, performance.now());
+      if (sequence) {
+        const modeLabel = state.combo.mode === "blackHole" ? "BLACK HOLE" : "BOOM";
+        state.comboStatus = triggered ? `${modeLabel} 3s` : `${state.combo.index}/${sequence.length}`;
+      }
+
+      if (triggered) {
+        state.demoMode = false;
+        state.targetExplosion = 0;
+      }
+
+      if (key === state.activeTextKey) return;
+      state.activeTextKey = key;
+      state.activeText = text;
+      if (!state.combo.blastAt && !state.combo.activeUntil) {
+        state.targetExplosion = 0;
+      }
+      updateParticleTargets(text);
+    }
+
+    async function initHandLandmarker() {
+      const { FilesetResolver, HandLandmarker } = await import("@mediapipe/tasks-vision");
+      const vision = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm"
+      );
+      handLandmarker = await HandLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+          delegate: "GPU"
+        },
+        runningMode: "VIDEO",
+        numHands: 2
+      });
+    }
+
+    async function startCamera() {
+      if (startingCamera || trackingActive) {
+        return;
+      }
+
+      let stream;
+      startingCamera = true;
+      startButton.disabled = true;
+
+      try {
+        state.cameraStatus = "requesting";
+        setHud();
+
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 640, height: 480, facingMode: "user" },
+          audio: false
+        });
+        video.srcObject = stream;
+        await video.play();
+
+        state.cameraStatus = "loading model";
+        state.demoMode = false;
+        setHud();
+
+        await initHandLandmarker();
+
+        startingCamera = false;
+        trackingActive = true;
+        state.cameraStatus = "active";
+        startButton.hidden = true;
+        setHud();
+        requestAnimationFrame(trackHands);
+      } catch (error) {
+        if (stream) {
+          for (const track of stream.getTracks()) {
+            track.stop();
+          }
+        }
+        if (video.srcObject === stream) {
+          video.srcObject = null;
+        }
+        startingCamera = false;
+        startButton.disabled = false;
+        state.cameraStatus = error?.name || "camera error";
+        state.handsStatus = "demo mode";
+        state.demoMode = true;
+        setHud();
+      }
+    }
+
+    function trackHands() {
+      requestAnimationFrame(trackHands);
+
+      if (!trackingActive || !handLandmarker || video.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+        return;
+      }
+
+      if (video.currentTime === lastVideoTime) {
+        return;
+      }
+
+      lastVideoTime = video.currentTime;
+      try {
+        const result = handLandmarker.detectForVideo(video, performance.now());
+        applyHandResult(result);
+      } catch (error) {
+        trackingActive = false;
+        state.cameraStatus = error?.name || "tracking error";
+        state.handsStatus = "demo mode";
+        state.demoMode = true;
+        setHud();
+      }
+    }
+
+    function distance2D(a, b) {
+      const dx = a.x - b.x;
+      const dy = a.y - b.y;
+      return Math.hypot(dx, dy);
+    }
+
+    function clamp01(value) {
+      return Math.max(0, Math.min(1, value));
+    }
+
+    function handednessLabel(result, index) {
+      const label = result.handedness?.[index]?.[0]?.categoryName || "";
+
+      // Keep MediaPipe's physical handedness by default; turn this on only if a browser
+      // reports left/right opposite to what the user physically performs.
+      if (!MIRROR_SELFIE_LABELS) return label;
+      if (label === "Left") return "Right";
+      if (label === "Right") return "Left";
+      return label;
+    }
+
+    function hasNumericPoint(point) {
+      return Number.isFinite(point?.x) && Number.isFinite(point?.y);
+    }
+
+    function isValidHand(landmarks) {
+      const neededPoints = [0, 2, 3, 4, 6, 8, 9, 10, 12, 14, 16, 18, 20];
+      return Array.isArray(landmarks)
+        && landmarks.length >= 21
+        && neededPoints.every((index) => hasNumericPoint(landmarks[index]));
+    }
+
+    function resetTextCandidate(hand) {
+      if (hand === "Left") {
+        state.leftTextCandidate = 0;
+        state.leftTextCandidateFrames = 0;
+        return;
+      }
+
+      state.rightTextCandidate = 0;
+      state.rightTextCandidateFrames = 0;
+    }
+
+    function updateTextCandidate(hand, fingers) {
+      if (!gestureTextForHand(hand, fingers)) {
+        resetTextCandidate(hand);
+        return;
+      }
+
+      const candidateKey = hand === "Left" ? "leftTextCandidate" : "rightTextCandidate";
+      const framesKey = hand === "Left" ? "leftTextCandidateFrames" : "rightTextCandidateFrames";
+
+      if (state[candidateKey] !== fingers) {
+        state[candidateKey] = fingers;
+        state[framesKey] = 1;
+      } else {
+        state[framesKey] = Math.min(
+          RIGHT_TEXT_STABLE_FRAMES,
+          state[framesKey] + 1
+        );
+      }
+
+      if (state[framesKey] === RIGHT_TEXT_STABLE_FRAMES) {
+        setActiveText(hand, fingers);
+      }
+    }
+
+    function countExtendedFingers(landmarks, label) {
+      const fingers = [
+        { tip: 8, pip: 6, mcp: 5 },
+        { tip: 12, pip: 10, mcp: 9 },
+        { tip: 16, pip: 14, mcp: 13 },
+        { tip: 20, pip: 18, mcp: 17 }
+      ];
+      const wrist = landmarks[0];
+      let count = 0;
+
+      for (const finger of fingers) {
+        const tipDistance = distance2D(landmarks[finger.tip], wrist);
+        const pipDistance = distance2D(landmarks[finger.pip], wrist);
+        const mcpDistance = distance2D(landmarks[finger.mcp], wrist);
+        const straightEnough = distance2D(landmarks[finger.tip], landmarks[finger.mcp])
+          > distance2D(landmarks[finger.pip], landmarks[finger.mcp]) * 1.28;
+
+        if (tipDistance > pipDistance * 1.08 && tipDistance > mcpDistance * 1.28 && straightEnough) {
+          count += 1;
+        }
+      }
+
+      const thumbTip = landmarks[4];
+      const thumbIp = landmarks[3];
+      const thumbMcp = landmarks[2];
+      const indexMcp = landmarks[5];
+      const thumbDistance = distance2D(thumbTip, wrist);
+      const thumbOpen = thumbDistance > distance2D(thumbIp, wrist) * 1.08
+        && thumbDistance > distance2D(thumbMcp, wrist) * 1.18
+        && distance2D(thumbTip, indexMcp) > distance2D(thumbIp, indexMcp) * 1.08;
+
+      if (thumbOpen) {
+        count += 1;
+      }
+
+      return count;
+    }
+
+    function leftHandSpread(landmarks) {
+      const wrist = landmarks[0];
+      const middleMcp = landmarks[9];
+      const indexTip = landmarks[8];
+      const pinkyTip = landmarks[20];
+      const palmSize = Math.max(0.001, distance2D(wrist, middleMcp));
+      const spread = distance2D(indexTip, pinkyTip) / palmSize;
+
+      return clamp01((spread - 1.1) / 1.45);
+    }
+
+    function twoHandScale(left, right) {
+      const leftPalm = Math.max(0.001, distance2D(left[0], left[9]));
+      const rightPalm = Math.max(0.001, distance2D(right[0], right[9]));
+      const palmSize = (leftPalm + rightPalm) * 0.5;
+      const wristDistance = distance2D(left[0], right[0]);
+      const palmDistance = distance2D(left[9], right[9]);
+      const distance = (wristDistance + palmDistance) * 0.5;
+      const normalized = clamp01((distance / palmSize - 2.0) / 5.2);
+
+      return 0.68 + normalized * 1.07;
+    }
+
+    function applyHandResult(result) {
+      const hands = result?.landmarks || [];
+      const now = performance.now();
+
+      if (hands.length === 0) {
+        if (!shouldEnterIdle(now, state.lastHandSeenAt)) {
+          state.handsStatus = "tracking";
+          state.demoMode = false;
+          state.targetExplosion += (0 - state.targetExplosion) * 0.2;
+          state.targetScale += (1 - state.targetScale) * 0.18;
+          state.targetResonance += (0 - state.targetResonance) * 0.18;
+          return;
+        }
+
+        state.handsStatus = "idle";
+        state.leftFingers = 0;
+        state.rightFingers = 0;
+        resetTextCandidate("Left");
+        resetTextCandidate("Right");
+        state.demoMode = true;
+        state.targetScale += (1 - state.targetScale) * 0.18;
+        state.targetResonance += (0 - state.targetResonance) * 0.18;
+        return;
+      }
+
+      let left = null;
+      let right = null;
+      let validHandCount = 0;
+
+      for (let index = 0; index < hands.length; index += 1) {
+        if (!isValidHand(hands[index])) {
+          continue;
+        }
+
+        validHandCount += 1;
+        const label = handednessLabel(result, index);
+        if (label === "Left") {
+          left = hands[index];
+        } else if (label === "Right") {
+          right = hands[index];
+        }
+      }
+
+      if (validHandCount === 0) {
+        if (!shouldEnterIdle(now, state.lastHandSeenAt)) {
+          state.handsStatus = "tracking";
+          state.demoMode = false;
+          state.targetExplosion += (0 - state.targetExplosion) * 0.2;
+          state.targetScale += (1 - state.targetScale) * 0.18;
+          state.targetResonance += (0 - state.targetResonance) * 0.18;
+          return;
+        }
+
+        state.handsStatus = "idle";
+        state.leftFingers = 0;
+        state.rightFingers = 0;
+        resetTextCandidate("Left");
+        resetTextCandidate("Right");
+        state.demoMode = true;
+        state.targetScale += (1 - state.targetScale) * 0.18;
+        state.targetResonance += (0 - state.targetResonance) * 0.18;
+        return;
+      }
+
+      state.lastHandSeenAt = now;
+      state.demoMode = false;
+      state.targetExplosion = 0;
+
+      if (left) {
+        const fingers = countExtendedFingers(left, "Left");
+        state.leftFingers = fingers;
+        updateTextCandidate("Left", Math.min(fingers, 5));
+      } else {
+        state.leftFingers = 0;
+        resetTextCandidate("Left");
+      }
+
+      if (right) {
+        const fingers = countExtendedFingers(right, "Right");
+        state.rightFingers = fingers;
+        updateTextCandidate("Right", Math.min(fingers, 5));
+      } else {
+        state.rightFingers = 0;
+        resetTextCandidate("Right");
+      }
+
+      if (left && right) {
+        state.targetScale = twoHandScale(left, right);
+        state.targetResonance = resonanceFromScale(state.targetScale);
+      } else {
+        state.targetScale += (1 - state.targetScale) * 0.12;
+        state.targetResonance += (0 - state.targetResonance) * 0.12;
+      }
+
+      state.handsStatus = `${left ? "L" : "-"} ${right ? "R" : "-"}`;
+    }
+
+    startButton.addEventListener("click", startCamera);
+
+    window.addEventListener("pointermove", (event) => {
+      if (state.cameraStatus !== "active") {
+        state.demoMode = false;
+        state.targetExplosion = clamp01(event.clientX / window.innerWidth);
+        state.targetScale = THREE.MathUtils.lerp(0.75, 1.45, clamp01(1 - event.clientY / window.innerHeight));
+      }
+    });
+
+    window.addEventListener("keydown", (event) => {
+      const digitKey = event.code?.startsWith("Digit") ? Number(event.code.slice(5)) : Number(event.key);
+      if (digitKey in KEYBOARD_TEXTS) {
+        const key = digitKey;
+        const hand = event.shiftKey ? "Left" : "Right";
+        state.demoMode = false;
+        if (hand === "Left") {
+          state.leftFingers = key;
+        } else {
+          state.rightFingers = key;
+        }
+        setActiveText(hand, key);
+        return;
+      }
+
+      if (event.code === "Space") {
+        event.preventDefault();
+        if (!event.repeat) {
+          state.demoMode = false;
+          state.targetExplosion = state.targetExplosion < 0.5 ? 1 : 0;
+        }
+      }
+    });
+
+    function animate(now) {
+      requestAnimationFrame(animate);
+
+      if (state.combo.blastAt && now < state.combo.blastAt) {
+        state.targetExplosion = 0;
+        const label = state.combo.mode === "blackHole" ? "BLACK HOLE" : "BOOM";
+        state.comboStatus = `${label} ${Math.ceil((state.combo.blastAt - now) / 1000)}s`;
+      } else if (state.combo.activeUntil > now) {
+        state.combo.blastAt = 0;
+        state.targetExplosion = 1;
+        state.comboStatus = state.combo.mode === "blackHole" ? "BLACK HOLE" : "BOOM";
+      } else if (state.combo.activeUntil) {
+        state.combo.blastAt = 0;
+        state.combo.activeUntil = 0;
+        state.combo.mode = "";
+        state.targetExplosion = 0;
+        state.comboStatus = "-";
+      }
+
+      if (state.demoMode) {
+        const seconds = now * 0.001;
+        state.targetExplosion = idleBreathValue(seconds);
+        state.targetScale = 0.96 + Math.sin(seconds * 0.28 + 1.4) * 0.12;
+      }
+
+      state.explosion += (state.targetExplosion - state.explosion) * 0.055;
+      state.scale += (state.targetScale - state.scale) * 0.065;
+      state.resonance += (state.targetResonance - state.resonance) * 0.09;
+      state.transitionKick *= 0.92;
+
+      const mix = THREE.MathUtils.clamp(state.explosion, 0, 1);
+      const inverseMix = 1 - mix;
+      const seconds = now * 0.001;
+      const textBreathe = 1 + Math.sin(seconds * 1.4) * 0.018 * inverseMix;
+      const kick = state.transitionKick;
+      const comboBlastActive = state.combo.activeUntil > now && !state.combo.blastAt;
+      const comboMode = comboBlastActive ? state.combo.mode : "";
+      const comboElapsed = comboBlastActive ? Math.max(0, now - (state.combo.activeUntil - COMBO_BLAST_MS)) : 0;
+      const comboProgress = comboBlastActive ? Math.min(1, comboElapsed / COMBO_BLAST_MS) : 0;
+      const resonanceActive = state.resonance > 0.02 && !comboBlastActive && !state.combo.blastAt && !state.demoMode;
+      const boomActive = comboMode === "boom";
+      const blackHoleActive = comboMode === "blackHole";
+      const blastSpin = comboBlastActive ? seconds * (boomActive ? 1.45 : 2.2) : 0;
+      const idleActive = state.demoMode && !comboBlastActive;
+      const trailEase = comboBlastActive ? 0.105 : 0.18;
+
+      for (let index = 0; index < PARTICLE_COUNT; index += 1) {
+        const offset = index * 3;
+        const sparkle = Math.sin(seconds * 5.8 + index * 0.37);
+        const scan = idleActive
+          ? idleScanValue(textTargets[offset + 1], seconds)
+          : Math.max(0, 1 - Math.abs((textTargets[offset + 1] * 0.006) - ((seconds * 1.7) % 2 - 1)));
+        const idleWave = idleActive ? scan * 18 + Math.sin(seconds * 1.8 + index * 0.012) * 4 : 0;
+        const wave = Math.sin(seconds * 2.2 + index * 0.021) * (1.2 + kick * 12 + scan * (kick * 16 + (idleActive ? 12 : 0))) * inverseMix + idleWave;
+        const depthWave = Math.cos(seconds * 3.1 + index * 0.047) * (4 + kick * 22 + (idleActive ? scan * 18 : 0)) * inverseMix;
+        const kickPush = Math.sin(index * 0.31) * kick * 18 * inverseMix;
+        let textX = textTargets[offset] + kickPush;
+        let textY = textTargets[offset + 1] + wave;
+        let textZ = textTargets[offset + 2] + depthWave;
+        let galaxyX = galaxyTargets[offset];
+        let galaxyY = galaxyTargets[offset + 1];
+        let galaxyZ = galaxyTargets[offset + 2];
+
+        if (idleActive) {
+          const idleSpin = seconds * 0.18 + index * 0.0004;
+          const rotated = rotatingBlastPoint(galaxyX, galaxyY, galaxyZ, idleSpin, Math.sin(seconds * 1.2 + index * 0.02) * 10);
+          galaxyX = rotated.x;
+          galaxyY = rotated.y;
+          galaxyZ = rotated.z;
+        }
+
+        if (comboBlastActive) {
+          const radius = Math.hypot(galaxyX, galaxyY);
+          const layerSpin = blastSpin + radius * 0.002 + index * 0.0009;
+          const wobble = Math.sin(seconds * 3.4 + index * 0.037) * (boomActive ? 34 : 58);
+          const rotated = boomActive
+            ? rotatingBlastPoint(galaxyX, galaxyY, galaxyZ, layerSpin, wobble)
+            : blackHolePoint(galaxyX, galaxyY, galaxyZ + wobble, comboProgress, layerSpin);
+          galaxyX = rotated.x;
+          galaxyY = rotated.y;
+          galaxyZ = rotated.z;
+        }
+
+        if (resonanceActive) {
+          const resonancePoint = resonanceTargetPoint(
+            index,
+            PARTICLE_COUNT,
+            textTargets[offset],
+            textTargets[offset + 1],
+            textTargets[offset + 2],
+            state.resonance,
+            seconds
+          );
+          const resonanceMix = resonanceMixForParticle(index, state.resonance);
+          textX = textX * (1 - resonanceMix) + resonancePoint.x * resonanceMix;
+          textY = textY * (1 - resonanceMix) + resonancePoint.y * resonanceMix;
+          textZ = textZ * (1 - resonanceMix) + resonancePoint.z * resonanceMix;
+        }
+
+        const x = (textX * inverseMix + galaxyX * mix) * state.scale * textBreathe;
+        const y = (textY * inverseMix + galaxyY * mix) * state.scale * textBreathe;
+        const z = (textZ * inverseMix + galaxyZ * mix) * state.scale;
+
+        particlePositions[offset] += (x - particlePositions[offset]) * trailEase;
+        particlePositions[offset + 1] += (y - particlePositions[offset + 1]) * trailEase;
+        particlePositions[offset + 2] += (z - particlePositions[offset + 2]) * trailEase;
+
+        scratchObject.position.set(
+          particlePositions[offset],
+          particlePositions[offset + 1],
+          particlePositions[offset + 2]
+        );
+        scratchObject.rotation.set(
+          comboBlastActive ? seconds * (blackHoleActive ? 2.4 : 1.1) + index * 0.013 : 0,
+          comboBlastActive ? seconds * (blackHoleActive ? 1.7 : 0.9) + index * 0.007 : (resonanceActive ? seconds * 0.6 + index * 0.003 : 0),
+          sparkle * 0.08 * inverseMix + (comboBlastActive ? seconds * (blackHoleActive ? 2.8 : 1.8) : 0) + (resonanceActive ? seconds * 1.2 : 0)
+        );
+        scratchObject.scale.setScalar(
+          0.62 + mix * 0.56 + sparkle * 0.045 * inverseMix + kick * 0.22 + (comboBlastActive ? sparkle * (blackHoleActive ? 0.12 : 0.07) : 0) + (resonanceActive ? state.resonance * 0.2 : 0)
+        );
+        scratchObject.updateMatrix();
+        particles.setMatrixAt(index, scratchObject.matrix);
+      }
+
+      particles.instanceMatrix.needsUpdate = true;
+      let hue = 0.53 + state.explosion * 0.18 + kick * 0.04;
+      let lightness = 0.7 + kick * 0.08;
+      if (idleActive) {
+        hue = 0.54 + Math.sin(seconds * 0.7) * 0.04;
+        lightness = 0.64 + Math.sin(seconds * 1.1) * 0.08;
+      } else if (resonanceActive) {
+        hue = 0.49 + Math.sin(seconds * (1.8 + state.resonance * 2.4)) * 0.08;
+        lightness = 0.68 + state.resonance * 0.16 + Math.sin(seconds * 4.0) * 0.05;
+      } else if (boomActive) {
+        hue = 0.52 + Math.sin(seconds * 2.8) * 0.08;
+        lightness = 0.7 + Math.sin(seconds * 5.2) * 0.08;
+      } else if (blackHoleActive) {
+        hue = 0.78 + Math.sin(seconds * 3.4) * 0.1;
+        lightness = 0.62 + Math.sin(seconds * 6.1) * 0.1;
+      }
+      particles.material.color.setHSL(hue, 0.98, lightness);
+      setHud();
+      renderer.render(scene, camera);
+    }
+
+    function boot() {
+      createRenderer();
+      createParticleField(PARTICLE_COUNT);
+      setHud();
+      requestAnimationFrame(animate);
+    }
+
+    boot();
+  </script>
+</body>
+</html>

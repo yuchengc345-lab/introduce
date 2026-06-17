@@ -453,7 +453,7 @@ function App() {
                 ) : null}
                 {work.note ? <p className="work-note">{work.note}</p> : null}
                 {work.url ? (
-                  <a className="work-link" href={work.url} target="_blank" rel="noreferrer">
+                  <a className="work-link" href={work.url} target="_blank" rel="noreferrer" aria-label={`${work.title} 查看作品`}>
                     查看作品
                   </a>
                 ) : null}
